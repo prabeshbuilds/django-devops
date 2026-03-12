@@ -180,6 +180,7 @@ pipeline {
                                         --name ${APP_NAME} \\
                                         --restart unless-stopped \\
                                         --network private-net \\
+                                        -p ${APP_PORT}:${APP_PORT} \\
                                         --env-file ${ENV_FILE} \\
                                         \${DOCKER_IMAGE}:${IMAGE_TAG}
 

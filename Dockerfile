@@ -37,9 +37,7 @@ WORKDIR /app
 # Install runtime system dependencies (for psycopg2)
 RUN apt-get update && apt-get install -y \
     libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-  
-
+    && rm -rf /var/lib/apt/lists/*  
 
 # Copy virtual environment from the builder stage
 COPY --from=builder /opt/venv /opt/venv
