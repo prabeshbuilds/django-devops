@@ -29,18 +29,27 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH"
 
+ARG user=django
+ARG uid=1000
+
 WORKDIR /app
 
 # Install runtime system dependencies (for psycopg2)
 RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
+  
+
 
 # Copy virtual environment from the builder stage
 COPY --from=builder /opt/venv /opt/venv
 
 # Copy local project into the container
 COPY . .
+
+RUN adduser devopsuser
+RUN chown devopsuser:devopsuser /app
+USER devopsuser
 
 # Run the Django application
 CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000"]
