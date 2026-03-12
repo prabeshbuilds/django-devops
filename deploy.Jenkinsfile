@@ -32,7 +32,7 @@ pipeline {
         APP_PORT        = '8000'
         
         // .env file path on production server
-        ENV_FILE        = '/home/jenkins/.local.env'
+        ENV_FILE        = '/home/jenkins/.django.env'
     }
 
     stages {
@@ -175,9 +175,6 @@ pipeline {
                                     docker stop ${APP_NAME} 2>/dev/null || true
                                     docker rm   ${APP_NAME} 2>/dev/null || true
 
-                                    # Removing the volume ensures that the NEW code inside the 
-                                    # docker image is copied to the volume for Nginx to see.
-                                    
                                     # Start new container with .env file
                                     docker run -d \\
                                         --name ${APP_NAME} \\
