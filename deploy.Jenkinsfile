@@ -32,7 +32,7 @@ pipeline {
         APP_PORT        = '8000'
         
         // .env file path on production server
-        ENV_FILE        = '/home/jenkins/.django.env'
+        ENV_FILE        = '/home/prabesh/.django.env'
     }
 
     stages {
