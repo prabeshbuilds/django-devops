@@ -170,32 +170,41 @@ ENDSSH
                 }
             }
         }
-         stage('🏥 Health Check') {
-            steps {
-                script {
-                    sh """
-                        echo "=== Preparing Health Check Environment ==="
-                        
-                        # [CHANGE: Use shell-compatible comments and install curl]
-                        if ! command -v curl &> /dev/null; then
-                            apk add --no-cache curl
-                        fi
+    stage('🏥 Health Check') {
+    steps {
+        script {
+            sh """
+                echo "=== Preparing Health Check Environment ==="
+                
+                # Install curl if not available
+                if ! command -v curl &> /dev/null; then
+                    apk add --no-cache curl || apt-get update && apt-get install -y curl
+                fi
 
-                        echo "=== Checking App on http://${DEPLOY_SERVER}:${APP_PORT}/ping ==="
-                        
-                        # Giving the Spring Boot app time to initialize and connect to DB
-                        sleep 30
-                        
-                        # -f ensures the pipeline fails if the response is 4xx or 5xx
-                        curl -f http://${DEPLOY_SERVER}:${APP_PORT}/ping || exit 1
-                        
+                echo "=== Checking Django App on http://${DEPLOY_SERVER}:${APP_PORT}/health/ ==="
+                
+                # Wait for the app to start properly
+                RETRIES=10
+                SLEEP=5
+                for i in \$(seq 1 \$RETRIES); do
+                    HTTP_STATUS=\$(curl -s -o /dev/null -w "%{http_code}" http://${DEPLOY_SERVER}:${APP_PORT}/health/)
+                    
+                    if [ "\$HTTP_STATUS" -eq 200 ]; then
                         echo "✅ Application is healthy!"
                         echo "🌐 Live at: http://${DEPLOY_SERVER}:${APP_PORT}"
-                    """
-                }
-            }
-        }
+                        exit 0
+                    else
+                        echo "⚠️ Health check failed (status \$HTTP_STATUS). Retrying in \$SLEEP seconds..."
+                        sleep \$SLEEP
+                    fi
+                done
 
+                echo "❌ Application failed health check after \$RETRIES attempts."
+                exit 1
+            """
+        }
+    }
+}
         stage('🧹 Cleanup') {
             steps {
                 sh "docker image prune -f || true"
