@@ -135,7 +135,7 @@ Server  : ${DEPLOY_SERVER}
                                     --name ${APP_NAME} \\
                                     --restart unless-stopped \\
                                     --network private-net \\
-                                    --env-file ${ENV_FILE} \\
+                                    // --env-file ${ENV_FILE} \\
                                     -p ${APP_PORT}:${APP_PORT} \\
                                     \${DOCKER_IMAGE}:${IMAGE_TAG}
 
