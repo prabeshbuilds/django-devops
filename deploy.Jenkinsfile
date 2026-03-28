@@ -170,31 +170,41 @@ ENDSSH
                 }
             }
         }
-        stage('🏥 Health Check') {
-            steps {
-                sh """
-                    echo "=== Health Check ==="
+    stage('🏥 Health Check') {
+    steps {
+        script {
+            sh """
+                echo "=== Preparing Health Check Environment ==="
+                
+                # Install curl if not available
+                if ! command -v curl &> /dev/null; then
+                    apk add --no-cache curl || apt-get update && apt-get install -y curl
+                fi
 
-                    apk add --no-cache curl || true
+                echo "=== Checking Django App on http://${DEPLOY_SERVER}:${APP_PORT}/health/ ==="
+                
+                # Wait for the app to start properly
+                RETRIES=10
+                SLEEP=5
+                for i in \$(seq 1 \$RETRIES); do
+                    HTTP_STATUS=\$(curl -s -o /dev/null -w "%{http_code}" http://${DEPLOY_SERVER}:${APP_PORT}/health/)
+                    
+                    if [ "\$HTTP_STATUS" -eq 200 ]; then
+                        echo "✅ Application is healthy!"
+                        echo "🌐 Live at: http://${DEPLOY_SERVER}:${APP_PORT}"
+                        exit 0
+                    else
+                        echo "⚠️ Health check failed (status \$HTTP_STATUS). Retrying in \$SLEEP seconds..."
+                        sleep \$SLEEP
+                    fi
+                done
 
-                    sleep 20
-
-                    for i in \$(seq 1 10); do
-                        if curl -f http://${DEPLOY_SERVER}:${APP_PORT}/; then
-                            echo "✅ Django app is healthy"
-                            exit 0
-                        else
-                            echo "⏳ Waiting..."
-                            sleep 5
-                        fi
-                    done
-
-                    echo "❌ Health check failed"
-                    exit 1
-                """
-            }
+                echo "❌ Application failed health check after \$RETRIES attempts."
+                exit 1
+            """
         }
-
+    }
+}
         stage('🧹 Cleanup') {
             steps {
                 sh "docker image prune -f || true"
