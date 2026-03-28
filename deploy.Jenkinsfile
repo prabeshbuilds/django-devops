@@ -114,7 +114,7 @@ Server  : ${DEPLOY_SERVER}
                     passwordVariable: 'DOCKER_PASSWORD'
                 )]) {
                     sshagent(['deployment-server-ssh']) {
-                        sh """
+                        sh '''
                             DOCKER_IMAGE=\${DOCKER_USERNAME}/${APP_NAME}
 
                             ssh -o StrictHostKeyChecking=no -p ${DEPLOY_PORT} ${DEPLOY_USER}@${DEPLOY_SERVER} << EOF
@@ -147,7 +147,7 @@ Server  : ${DEPLOY_SERVER}
                                 docker logout
                                 echo "✅ Deployment done"
                             EOF
-                        """
+                        '''
                     }
                 }
             }
