@@ -170,28 +170,29 @@ ENDSSH
                 }
             }
         }
-        stage('🏥 Health Check') {
+         stage('🏥 Health Check') {
             steps {
-                sh """
-                    echo "=== Health Check ==="
-
-                    apk add --no-cache curl || true
-
-                    sleep 20
-
-                    for i in \$(seq 1 10); do
-                        if curl -f http://${DEPLOY_SERVER}:${APP_PORT}/; then
-                            echo "✅ Django app is healthy"
-                            exit 0
-                        else
-                            echo "⏳ Waiting..."
-                            sleep 5
+                script {
+                    sh """
+                        echo "=== Preparing Health Check Environment ==="
+                        
+                        # [CHANGE: Use shell-compatible comments and install curl]
+                        if ! command -v curl &> /dev/null; then
+                            apk add --no-cache curl
                         fi
-                    done
 
-                    echo "❌ Health check failed"
-                    exit 1
-                """
+                        echo "=== Checking App on http://${DEPLOY_SERVER}:${APP_PORT}/ping ==="
+                        
+                        # Giving the Spring Boot app time to initialize and connect to DB
+                        sleep 30
+                        
+                        # -f ensures the pipeline fails if the response is 4xx or 5xx
+                        curl -f http://${DEPLOY_SERVER}:${APP_PORT}/ping || exit 1
+                        
+                        echo "✅ Application is healthy!"
+                        echo "🌐 Live at: http://${DEPLOY_SERVER}:${APP_PORT}"
+                    """
+                }
             }
         }
 
