@@ -174,21 +174,12 @@ ENDSSH
     steps {
         script {
             sh """
-                echo "=== Preparing Health Check Environment ==="
-                
-                # Install curl if not available
-                if ! command -v curl &> /dev/null; then
-                    apk add --no-cache curl || apt-get update && apt-get install -y curl
-                fi
-
                 echo "=== Checking Django App on http://${DEPLOY_SERVER}:${APP_PORT}/health/ ==="
-                
-                # Wait for the app to start properly
+
                 RETRIES=10
                 SLEEP=5
                 for i in \$(seq 1 \$RETRIES); do
                     HTTP_STATUS=\$(curl -s -o /dev/null -w "%{http_code}" http://${DEPLOY_SERVER}:${APP_PORT}/health/)
-                    
                     if [ "\$HTTP_STATUS" -eq 200 ]; then
                         echo "✅ Application is healthy!"
                         echo "🌐 Live at: http://${DEPLOY_SERVER}:${APP_PORT}"
