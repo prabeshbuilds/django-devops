@@ -105,60 +105,71 @@ Server  : ${DEPLOY_SERVER}
                 }
             }
         }
-stage('🚀 Deploy to Production') {
-    steps {
-        withCredentials([usernamePassword(
-            credentialsId: 'dockerhub-credentials',
-            usernameVariable: 'DOCKER_USERNAME',
-            passwordVariable: 'DOCKER_PASSWORD'
-        )]) {
-            sshagent(['deployment-server-ssh']) {
-                sh '''
-                    DOCKER_IMAGE=${DOCKER_USERNAME}/${APP_NAME}
+        stage('🚀 Deploy to Production') {
+            steps {
+                script {
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: 'dockerhub-credentials',
+                            usernameVariable: 'DOCKER_USERNAME',
+                            passwordVariable: 'DOCKER_PASSWORD'
+                        )
+                    ]) {
+                        sshagent(['deployment-server-ssh']) {
+                            sh """
+                                DOCKER_IMAGE="\${DOCKER_USERNAME}/${APP_NAME}"
+                                
+                                echo "=== Deploying to Production ==="
+                                echo "Server: ${DEPLOY_SERVER}"
+                                echo "Image : \${DOCKER_IMAGE}:${IMAGE_TAG}"
+                                
+                                ssh -o StrictHostKeyChecking=no \\
+                                    -p ${DEPLOY_PORT} \\
+                                    ${DEPLOY_USER}@${DEPLOY_SERVER} << ENDSSH
 
-                    ssh -o StrictHostKeyChecking=no -p ${DEPLOY_PORT} ${DEPLOY_USER}@${DEPLOY_SERVER} << EOF
-                        set -e
+                                    echo "=== Connected to Production Server ==="
+                                    
+                                    # Login to DockerHub
+                                    echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
+                                    set -e
+                                    # Pull new image
+                                    docker pull \${DOCKER_IMAGE}:${IMAGE_TAG}
+                                    
+                                    # Stop old container
+                                    docker stop ${APP_NAME} 2>/dev/null || true
+                                    docker rm   ${APP_NAME} 2>/dev/null || true
 
-                        echo "✅ Connected"
+                                    # Start new container with .env file
+                                    docker run -d \\
+                                        --name ${APP_NAME} \\
+                                        --restart unless-stopped \\
+                                        --network private-net \\
+                                        -p ${APP_PORT}:${APP_PORT} \\
+                                        --env-file ${ENV_FILE} \\
+                                        \${DOCKER_IMAGE}:${IMAGE_TAG}
 
-                        # Create network if not exists
-                        docker network inspect private-net >/dev/null 2>&1 || docker network create private-net
-
-                        # Docker login
-                        echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
-
-                        # Pull latest image
-                        docker pull ${DOCKER_IMAGE}:${IMAGE_TAG}
-
-                        # Stop & remove old container safely
-                        docker rm -f ${APP_NAME} || true
-
-                        # Run new container
-                        docker run -d \\
-                            --name ${APP_NAME} \\
-                            --restart unless-stopped \\
-                            --network private-net \\
-                            -p ${APP_PORT}:${APP_PORT} \\
-                            ${DOCKER_IMAGE}:${IMAGE_TAG}
-
-                        echo "⏳ Waiting for container..."
-                        sleep 5
-
-                        # Verify container
-                        docker ps | grep ${APP_NAME}
-
-                        # Show logs
-                        docker logs --tail 20 ${APP_NAME}
-
-                        docker logout
-                        echo "✅ Deployment done"
-                    EOF
-                '''
+                                    # Ensures the new routes and config are loaded immediately
+                                    
+                                    # Verify
+                                    sleep 5
+                                    docker ps | grep ${APP_NAME}
+                                    
+                                    # Show logs
+                                    docker logs --tail 20 ${APP_NAME}
+                                    
+                                    # Cleanup old images
+                                    docker images | grep \${DOCKER_IMAGE} | tail -n +6 | awk '{print \\\$3}' | xargs -r docker rmi || true
+                                    
+                                    docker logout
+                                    
+                                    echo "✅ Deployment completed!"
+ENDSSH
+                            """
+                        }
+                    }
+                }
             }
         }
-    }
-}
-
         stage('🏥 Health Check') {
             steps {
                 sh """
